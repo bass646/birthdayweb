@@ -1,0 +1,1892 @@
+Berikut adalah versi terbaru sesuai permintaanmu:
+
+1. **Halaman Favorite Song (3D)**: 
+   - Desain dirombak menjadi *3D Carousel* yang mewah.
+   - Ditambahkan **gambar cover asli** dari link yang kamu berikan.
+   - Ditambahkan animasi **Vinyl berputar** (berputar terus-menerus saat kartu berada di tengah).
+2. **Halaman Lilin**:
+   - Api yang sudah mati (ditiup) akan **berhenti beranimasi** (tidak *flicker* lagi) dan memudar.
+   - Saat tombol "NYALAKAN LAGI" ditekan, api akan **menyala kembali** dengan animasi *flicker*.
+3. **Halaman Make a Wish**:
+   - Animasi teks melayang diganti menjadi **efek Petasan Bintang (Fireworks/Sparkles)** yang meledak ke atas dengan sangat mewah. Teks akan muncul seiring dengan ledakan cahaya bintang.
+
+**PENTING**: Teks/kata-kata yang sudah kamu ubah tidak akan diubah lagi. Aku hanya mengubah bagian *CSS*, *HTML* (khusus slider lagu & gambar), dan *JavaScript* untuk animasi.
+
+```html
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
+<meta name="theme-color" content="#3a1008">
+<title>生日快乐 · Interactive Birthday</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&family=VT323&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   THEME & VARIABLES (Classic Oriental Red)
+============================================================ */
+:root {
+  --bg: #3a1008;
+  --bg-grad-1: #7a2a0f;
+  --bg-grad-2: #5a1a0a;
+  --bg-grad-3: #3a1008;
+  --bg-grad-4: #1a0403;
+  --primary: #ffd700;
+  --primary-light: #fff2c0;
+  --primary-dark: #d4a537;
+  --accent: #ff3e3e;
+  --accent-dark: #c11a1a;
+  --card-bg-1: rgba(90,16,8,0.95);
+  --card-bg-2: rgba(58,8,8,0.92);
+  --card-bg-3: rgba(36,4,4,0.95);
+  --shadow: #1a0303;
+  --text-main: #fff2c0;
+  --text-sub: rgba(255,242,192,0.9);
+}
+
+/* ============================================================
+   RESET & BASE (Anti Lag & Mobile Friendly)
+============================================================ */
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%; overscroll-behavior: none;}
+body{
+  background:var(--bg);
+  color:var(--text-main);
+  font-family:'VT323','Silkscreen',monospace;
+  overflow-x:hidden;
+  min-height:100vh;
+  position:relative;
+  image-rendering:pixelated;
+  -webkit-font-smoothing:none;
+  overscroll-behavior-y: contain;
+}
+
+#bgCanvas{
+  position:fixed;inset:0;width:100%;height:100%;
+  z-index:0;pointer-events:none;image-rendering:pixelated;
+}
+
+body::after{
+  content:'';position:fixed;inset:0;
+  background:
+    repeating-linear-gradient(0deg,rgba(0,0,0,0.1) 0px,rgba(0,0,0,0.1) 1px,transparent 1px,transparent 3px),
+    radial-gradient(ellipse at center,transparent 45%,var(--bg) 100%);
+  pointer-events:none;z-index:3;mix-blend-mode:multiply;
+}
+
+/* ============================================================
+   AUDIO CONTROLS
+============================================================ */
+.audio-controls{
+  position:fixed;
+  bottom:max(1rem,env(safe-area-inset-bottom));
+  right:max(1rem,env(safe-area-inset-right));
+  display:flex;
+  flex-direction:column;
+  gap:0.55rem;
+  z-index:101;
+}
+.audio-btn{
+  position:relative;
+  width:50px;height:50px;
+  border:2px solid var(--primary);
+  background:linear-gradient(160deg,var(--bg-grad-2),var(--shadow));
+  color:var(--primary-light);
+  cursor:pointer;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  box-shadow:0 0 0 2px var(--shadow),0 0 18px rgba(255,215,0,0.5);
+  transition:all 0.3s ease;
+  padding:0;
+  touch-action:manipulation;
+}
+.audio-btn:hover{transform:translate(-1px,-1px);box-shadow:0 0 0 2px var(--shadow),0 0 28px var(--primary);}
+.audio-btn:active{transform:translate(1px,1px);}
+.audio-btn svg{width:22px;height:22px;}
+.audio-btn.off{color:#666;border-color:#444;box-shadow:0 0 0 2px var(--shadow);}
+.audio-btn .mini-label{position:absolute;bottom:-14px;left:50%;transform:translateX(-50%);font-family:'Silkscreen',monospace;font-size:0.4rem;letter-spacing:0.1em;color:var(--primary-light);white-space:nowrap;text-shadow:0 0 4px rgba(0,0,0,0.8);}
+.audio-btn.off .mini-label{color:#666;}
+
+/* ============================================================
+   SCROLLER (Touch & Snap)
+============================================================ */
+.scroller{
+  height:100dvh;overflow-y:scroll;scroll-snap-type:y mandatory;
+  scrollbar-width:none;-webkit-overflow-scrolling:touch;
+  position:relative;z-index:2;
+  touch-action: pan-y;
+}
+.scroller::-webkit-scrollbar{display:none;}
+
+.slide{
+  position:relative;height:100dvh;min-height:100dvh;width:100%;
+  scroll-snap-align:start;scroll-snap-stop:always;
+  display:flex;align-items:center;justify-content:center;
+  padding:max(env(safe-area-inset-top),1rem) max(env(safe-area-inset-right),1rem) max(env(safe-area-inset-bottom),1rem) max(env(safe-area-inset-left),1rem);
+  overflow:hidden;
+}
+
+/* ============================================================
+   KARTU GLASS
+============================================================ */
+.card{
+  position:relative;z-index:5;width:min(94vw,600px);max-height:92dvh;
+  padding:clamp(1.6rem,4.5vw,2.5rem) clamp(1.2rem,4vw,2rem);
+  background:linear-gradient(160deg,var(--card-bg-1) 0%,var(--card-bg-2) 50%,var(--card-bg-3) 100%);
+  border:2px solid var(--primary);
+  box-shadow:
+    0 0 0 2px var(--shadow),0 0 0 4px var(--primary-dark),0 0 0 6px var(--shadow),0 0 0 8px var(--primary),0 0 0 9px var(--shadow),
+    0 25px 70px -15px rgba(0,0,0,0.95),0 0 80px var(--accent),inset 0 0 50px rgba(255,215,0,0.08);
+  text-align:center;overflow:hidden;opacity:0;transform:translateY(50px) scale(0.94);filter:blur(6px);
+  transition:opacity 1s cubic-bezier(0.16,1,0.3,1),transform 1s cubic-bezier(0.16,1,0.3,1),filter 1s cubic-bezier(0.16,1,0.3,1);
+  will-change:opacity,transform,filter;display:flex;flex-direction:column;image-rendering:pixelated;
+}
+.slide.in .card{opacity:1;transform:translateY(0) scale(1);filter:blur(0);}
+.card::before{content:'';position:absolute;inset:10px;border:1px dashed var(--primary);opacity:0.35;pointer-events:none;z-index:1;}
+.card::after{
+  content:'';position:absolute;inset:0;pointer-events:none;
+  background:
+    linear-gradient(135deg,transparent 8px,var(--primary) 8px,var(--primary) 12px,transparent 12px) top left/40px 40px no-repeat,
+    linear-gradient(225deg,transparent 8px,var(--primary) 8px,var(--primary) 12px,transparent 12px) top right/40px 40px no-repeat,
+    linear-gradient(45deg,transparent 8px,var(--primary) 8px,var(--primary) 12px,transparent 12px) bottom left/40px 40px no-repeat,
+    linear-gradient(315deg,transparent 8px,var(--primary) 8px,var(--primary) 12px,transparent 12px) bottom right/40px 40px no-repeat;
+  opacity:0.7;z-index:1;
+}
+.corner{position:absolute;width:8px;height:8px;background:var(--primary);box-shadow:0 0 0 2px var(--shadow),0 0 8px var(--primary);z-index:3;}
+.corner.tl{top:2px;left:2px;}.corner.tr{top:2px;right:2px;}
+.corner.bl{bottom:2px;left:2px;}.corner.br{bottom:2px;right:2px;}
+
+.slide.in .card .stagger{animation:staggerIn 0.9s cubic-bezier(0.16,1,0.3,1) both;}
+.slide.in .card .stagger:nth-child(1){animation-delay:0.1s;}
+.slide.in .card .stagger:nth-child(2){animation-delay:0.2s;}
+.slide.in .card .stagger:nth-child(3){animation-delay:0.3s;}
+.slide.in .card .stagger:nth-child(4){animation-delay:0.4s;}
+.slide.in .card .stagger:nth-child(5){animation-delay:0.5s;}
+.slide.in .card .stagger:nth-child(6){animation-delay:0.6s;}
+@keyframes staggerIn{from{opacity:0;transform:translateY(20px);filter:blur(4px);}to{opacity:1;transform:translateY(0);filter:blur(0);}}
+
+/* ============================================================
+   TIPOGRAFI & UI
+============================================================ */
+.eyebrow{
+  display:inline-block;font-family:'Silkscreen',monospace;font-size:clamp(0.5rem,1.9vw,0.62rem);font-weight:700;
+  letter-spacing:0.25em;text-transform:uppercase;color:var(--primary-light);margin-bottom:clamp(0.7rem,2.2vw,1rem);
+  padding:0.5em 1em;border:2px solid var(--primary);
+  background:linear-gradient(160deg,rgba(255,215,0,0.15),rgba(255,215,0,0.05));
+  text-shadow:0 0 8px var(--primary);position:relative;
+}
+.eyebrow::before,.eyebrow::after{content:'';position:absolute;top:50%;width:4px;height:4px;background:var(--primary);transform:translateY(-50%) rotate(45deg);box-shadow:0 0 6px var(--primary);}
+.eyebrow::before{left:-8px;}.eyebrow::after{right:-8px;}
+
+.title{
+  font-family:'Silkscreen',monospace;font-size:clamp(1.35rem,5.5vw,2.4rem);font-weight:700;line-height:1.3;
+  letter-spacing:0.03em;margin-bottom:clamp(0.7rem,2.2vw,1.1rem);color:var(--text-main);
+  text-shadow:2px 2px 0 var(--accent-dark),3px 3px 0 var(--accent-dark),4px 4px 0 var(--shadow),5px 5px 0 var(--shadow),0 0 25px var(--primary);
+  position:relative;z-index:2;
+}
+.title .zh{display:block;font-size:0.55em;color:var(--primary);letter-spacing:0.12em;margin-top:0.5em;font-family:'VT323',monospace;font-weight:400;text-shadow:1px 1px 0 var(--shadow),0 0 12px var(--primary);}
+
+.subtitle{font-family:'VT323',monospace;font-size:clamp(0.95rem,3.5vw,1.18rem);line-height:1.45;color:var(--text-sub);max-width:34ch;margin:0 auto clamp(1.1rem,3vw,1.6rem);letter-spacing:0.02em;position:relative;z-index:2;}
+
+.divider{width:120px;height:4px;margin:0 auto clamp(0.9rem,2.5vw,1.3rem);background:repeating-linear-gradient(90deg,var(--primary) 0 8px,transparent 8px 12px);position:relative;box-shadow:0 0 12px var(--primary);}
+.divider::before,.divider::after{content:'';position:absolute;top:50%;width:8px;height:8px;background:var(--primary);transform:translateY(-50%) rotate(45deg);box-shadow:0 0 10px var(--primary);}
+.divider::before{left:-14px;}.divider::after{right:-14px;}
+
+.btn{
+  position:relative;display:inline-flex;align-items:center;justify-content:center;padding:clamp(0.85rem,3vw,1.05rem) clamp(1.7rem,5.5vw,2.4rem);
+  font-family:'Silkscreen',monospace;font-weight:700;font-size:clamp(0.58rem,2.4vw,0.72rem);letter-spacing:0.12em;text-transform:uppercase;
+  color:var(--text-main);border:2px solid var(--primary);border-radius:0;background:linear-gradient(160deg,var(--accent-dark) 0%,var(--accent) 50%,var(--shadow) 100%);
+  cursor:pointer;transition:all 0.3s ease;
+  box-shadow:0 0 0 2px var(--shadow),4px 4px 0 var(--primary),4px 4px 0 2px var(--shadow),0 0 30px rgba(255,215,0,0.6),inset 0 2px 0 rgba(255,255,255,0.3),inset 0 -2px 0 rgba(0,0,0,0.5);
+  user-select:none;touch-action:manipulation;margin:0 auto;text-shadow:1px 1px 0 var(--shadow);z-index:2;
+}
+.btn:hover{transform:translate(-2px,-2px);box-shadow:0 0 0 2px var(--shadow),6px 6px 0 var(--primary),6px 6px 0 2px var(--shadow),0 0 45px var(--primary),inset 0 2px 0 rgba(255,255,255,0.4),inset 0 -2px 0 rgba(0,0,0,0.5);}
+.btn:active{transform:translate(3px,3px);}
+.btn.ghost{background:transparent;color:var(--primary);border-color:var(--primary);box-shadow:0 0 0 2px var(--shadow),inset 0 0 15px rgba(255,215,0,0.1);}
+.btn.ghost:hover{background:rgba(255,215,0,0.08);}
+
+.ripple{position:absolute;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,0.9),transparent 70%);transform:scale(0);animation:ripple 0.6s steps(5) forwards;pointer-events:none;z-index:-1;}
+@keyframes ripple{to{transform:scale(20);opacity:0;}}
+
+/* ============================================================
+   LETTER
+============================================================ */
+.letter-loader{width:100%;margin:clamp(0.9rem,2.5vw,1.2rem) 0;display:none;flex-direction:column;gap:0.65rem;align-items:center;position:relative;z-index:2;}
+.letter-loader.show{display:flex;}
+.loader-text{font-family:'Silkscreen',monospace;font-size:0.58rem;font-weight:700;color:var(--primary-light);letter-spacing:0.18em;text-transform:uppercase;text-shadow:0 0 8px var(--primary);}
+.loader-bar{width:100%;max-width:280px;height:16px;background:var(--shadow);border:2px solid var(--primary);box-shadow:0 0 0 2px var(--shadow),0 0 20px var(--primary),inset 0 0 10px rgba(0,0,0,0.7);overflow:hidden;position:relative;}
+.loader-fill{height:100%;width:0%;background:repeating-linear-gradient(90deg,var(--primary-light) 0 6px,var(--primary) 6px 12px);box-shadow:0 0 12px var(--primary-light);transition:width 0.15s linear;}
+.loader-percent{font-family:'Silkscreen',monospace;font-size:0.62rem;font-weight:700;color:var(--primary-light);text-shadow:0 0 8px var(--primary);letter-spacing:0.1em;}
+
+.letter-wrap{width:100%;margin:clamp(0.8rem,2.4vw,1.2rem) 0 0;display:none;position:relative;z-index:2;}
+.letter-wrap.show{display:block;animation:letterOpen 0.8s steps(6) both;}
+@keyframes letterOpen{0%{opacity:0;transform:scaleY(0.1) translateY(-10px);}40%{opacity:1;transform:scaleY(1.05) translateY(0);}100%{opacity:1;transform:scaleY(1) translateY(0);}}
+
+.letter{
+  position:relative;background:linear-gradient(160deg,#fffaf0 0%,#f5e6b8 100%);border:2px solid var(--primary-dark);
+  box-shadow:0 0 0 2px var(--shadow),0 0 0 4px var(--primary-dark),0 0 0 6px var(--shadow),0 20px 50px rgba(0,0,0,0.8),inset 0 0 30px rgba(180,130,60,0.2);
+  padding:clamp(1rem,3vw,1.4rem);text-align:left;max-height:38dvh;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--primary-dark) #f5e6b8;min-height:120px;
+}
+.letter::-webkit-scrollbar{width:6px;}
+.letter::-webkit-scrollbar-track{background:#f5e6b8;}
+.letter::-webkit-scrollbar-thumb{background:var(--primary-dark);border:1px solid var(--accent-dark);}
+.letter::before{content:'';position:absolute;inset:6px;border:1px dashed rgba(122,15,15,0.3);pointer-events:none;}
+.letter::after{
+  content:'寿';position:absolute;top:12px;right:12px;width:42px;height:42px;background:radial-gradient(circle,var(--accent) 0%,var(--accent-dark) 60%,var(--shadow) 100%);
+  color:#fffaf0;font-family:'VT323',monospace;font-size:1.5rem;display:flex;align-items:center;justify-content:center;border-radius:50%;
+  box-shadow:0 0 0 2px var(--shadow),0 0 0 3px #fffaf0,0 0 0 4px var(--accent-dark),0 0 18px var(--accent);
+  transform:rotate(-8deg);text-shadow:1px 1px 0 rgba(0,0,0,0.5);z-index:2;
+}
+.letter-text{font-family:'VT323',monospace;font-size:clamp(0.98rem,3.7vw,1.13rem);line-height:1.6;color:#3a1a0a;letter-spacing:0.01em;white-space:pre-wrap;word-wrap:break-word;min-height:1.6em;position:relative;z-index:1;padding-right:clamp(3rem,10vw,4rem);}
+.letter-text .cursor{display:inline-block;width:0.5em;height:1.1em;background:var(--accent-dark);vertical-align:text-bottom;margin-left:2px;animation:cursorBlink 0.7s steps(1) infinite;}
+@keyframes cursorBlink{0%,49%{opacity:1;}50%,100%{opacity:0;}}
+
+.skip-hint{display:none;font-family:'Silkscreen',monospace;font-size:0.5rem;font-weight:700;color:var(--primary-light);opacity:0.8;text-align:center;margin-top:0.65rem;letter-spacing:0.18em;text-transform:uppercase;cursor:pointer;padding:0.4rem;}
+.skip-hint.show{display:block;}
+
+/* ============================================================
+   WISH LANTERN (FIREWORK ANIMATION)
+============================================================ */
+.wish-form{display:flex;flex-direction:column;gap:0.65rem;width:100%;margin-bottom:clamp(0.8rem,2vw,1rem);position:relative;z-index:2;}
+.wish-input{
+  width:100%;padding:0.85rem 1rem;font-family:'VT323',monospace;font-size:1rem;color:#3a1a0a;
+  background:linear-gradient(160deg,#fffaf0,#f5e6b8);border:2px solid var(--primary-dark);
+  box-shadow:0 0 0 2px var(--shadow),inset 0 2px 4px rgba(180,130,60,0.2);outline:none;transition:all 0.2s;letter-spacing:0.02em;
+}
+.wish-input::placeholder{color:rgba(58,26,10,0.5);}
+.wish-input:focus{border-color:var(--primary);box-shadow:0 0 0 2px var(--shadow),0 0 20px var(--primary),inset 0 2px 4px rgba(180,130,60,0.2);}
+.wish-btn-row{display:flex;gap:0.5rem;justify-content:center;}
+
+/* ============================================================
+   CAKE & CANDLE (Animasi mati & nyala ulang)
+============================================================ */
+.cake-scene{
+  position:relative;
+  width:min(260px,65vw);
+  height:min(240px,60vw);
+  margin:0 auto clamp(0.8rem,2vw,1.1rem);
+  display:flex;
+  align-items:flex-end;
+  justify-content:center;
+  z-index:2;
+  perspective: 800px;
+}
+.plate {
+  position: absolute;
+  bottom: -10px;
+  width: 110%;
+  height: 20px;
+  background: #cbd5e1;
+  border: 3px solid var(--shadow);
+  border-radius: 50%;
+  box-shadow: inset 0 -4px 0 rgba(0,0,0,0.2), 0 4px 0 var(--shadow);
+  z-index: 0;
+}
+.cake-body{
+  position:relative;width:90%;height:55%;
+  background: linear-gradient(180deg, #ffb380 0%, #ff8a4a 20%, #e85a1a 100%);
+  border: 3px solid var(--shadow);
+  border-radius: 8px 8px 4px 4px;
+  box-shadow: inset -10px 0 0 rgba(0,0,0,0.15), inset 10px 0 0 rgba(255,255,255,0.1);
+  z-index: 1;
+}
+.cake-body::before {
+  content: '';
+  position: absolute;
+  top: -10px; left: -3px; right: -3px;
+  height: 24px;
+  background: #fff2c0;
+  border: 3px solid var(--shadow);
+  border-radius: 20px 20px 10px 10px;
+  z-index: 2;
+}
+.cake-body::after {
+  content: '';
+  position: absolute;
+  top: 10px; left: -3px; right: -3px;
+  height: 16px;
+  background: radial-gradient(circle at 10% 0%, #fff2c0 8px, transparent 9px),
+              radial-gradient(circle at 30% 0%, #fff2c0 12px, transparent 13px),
+              radial-gradient(circle at 50% 0%, #fff2c0 10px, transparent 11px),
+              radial-gradient(circle at 70% 0%, #fff2c0 14px, transparent 15px),
+              radial-gradient(circle at 90% 0%, #fff2c0 8px, transparent 9px);
+  background-size: 100% 100%;
+  z-index: 2;
+}
+.sprinkles {
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(circle at 20% 60%, var(--accent) 2px, transparent 3px),
+    radial-gradient(circle at 40% 70%, #00e5ff 2px, transparent 3px),
+    radial-gradient(circle at 60% 50%, var(--primary) 2px, transparent 3px),
+    radial-gradient(circle at 80% 75%, var(--accent-dark) 2px, transparent 3px);
+  z-index: 1;
+  opacity: 0.8;
+}
+.candle{
+  position:absolute;bottom:55%;width:12px;height:45px;
+  background:repeating-linear-gradient(45deg,#fff 0 5px,var(--accent) 5px 10px);
+  border:2px solid var(--shadow);cursor:pointer;z-index:3;
+  transition:transform 0.2s, opacity 0.3s;
+  border-radius: 4px;
+}
+.candle:nth-child(3){left:20%;}
+.candle:nth-child(4){left:40%;}
+.candle:nth-child(5){left:60%;}
+.candle:nth-child(6){left:80%;}
+.candle .flame{
+  position:absolute;top:-22px;left:50%;transform-origin: bottom center;transform:translateX(-50%);
+  width:14px;height:24px;
+  background:radial-gradient(ellipse at 50% 80%, #fff 0%, var(--primary) 30%, #ff8a1a 60%, var(--accent) 100%);
+  border-radius: 50% 50% 20% 20%;
+  box-shadow:0 0 20px var(--primary), 0 0 40px #ff8a1a;
+  animation:flameFlicker 0.15s ease-in-out infinite alternate;
+  transition:opacity 0.4s, transform 0.4s;
+}
+@keyframes flameFlicker{
+  0%{transform:translateX(-50%) scale(1) rotate(-3deg); opacity:0.9;}
+  100%{transform:translateX(-50%) scale(1.1) rotate(3deg); opacity:1;}
+}
+/* Lilin padam: Animasi berhenti, api hilang */
+.candle.blown .flame{
+  opacity:0;
+  transform:translateX(-50%) scale(0) translateY(-10px);
+  animation: none; /* Animasi berhenti */
+}
+.candle.blown{opacity:0.6; filter: grayscale(0.5);}
+.candle.blown::before {
+  content:''; position:absolute; inset:-10px; border-radius:50%;
+  background: radial-gradient(circle, rgba(255,255,255,0.4) 0%, transparent 70%);
+  opacity:0; animation: smokeFade 1s ease-out forwards;
+  z-index:-1;
+}
+@keyframes smokeFade {
+  0% { opacity: 0.8; transform: scale(0.5); }
+  100% { opacity: 0; transform: scale(2); }
+}
+.candle.blown::after{
+  content:'💨';position:absolute;top:-30px;left:50%;transform:translateX(-50%);
+  font-size:20px;opacity:0.8;animation:smokeUp 1s ease-out forwards;
+}
+@keyframes smokeUp {
+  0% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -20px) scale(1.5); }
+}
+.hint-blow{font-family:'Silkscreen',monospace;font-size:0.5rem;color:var(--primary-light);opacity:0.8;letter-spacing:0.15em;text-transform:uppercase;text-align:center;margin-bottom:clamp(0.6rem,1.8vw,0.9rem);position:relative;z-index:2;}
+
+/* ============================================================
+   FAVORITE CARDS (HOLOGRAPHIC 3D)
+============================================================ */
+.holo-card-container {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  margin: clamp(1rem, 3vw, 1.5rem) 0;
+  z-index: 5;
+  perspective: 1000px;
+  flex-wrap: wrap;
+}
+.holo-card {
+  width: 200px;
+  height: 280px;
+  background: var(--card-bg-2);
+  border: 2px solid var(--primary);
+  border-radius: 12px;
+  box-shadow: 
+    0 0 0 2px var(--shadow), 
+    0 0 0 4px var(--primary-dark),
+    0 15px 35px rgba(0,0,0,0.6),
+    inset 0 0 20px rgba(255,255,255,0.1);
+  position: relative;
+  overflow: hidden;
+  transform-style: preserve-3d;
+  transition: transform 0.1s ease-out, box-shadow 0.3s;
+  cursor: pointer;
+}
+.holo-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(125deg, transparent 0%, rgba(255,255,255,0.4) 40%, rgba(255,255,255,0.1) 50%, transparent 60%);
+  background-size: 200% 200%;
+  background-position: 100% 100%;
+  mix-blend-mode: overlay;
+  z-index: 10;
+  pointer-events: none;
+  transition: background-position 0.5s;
+}
+.holo-card:hover::before {
+  background-position: 0% 0%;
+}
+.holo-card img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 10px;
+  image-rendering: pixelated;
+  filter: saturate(1.2) contrast(1.1);
+}
+.holo-content {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 1.5rem 0.5rem 0.8rem;
+  background: linear-gradient(to top, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.5) 60%, transparent 100%);
+  text-align: center;
+  transform: translateZ(30px); /* 3D Pop */
+}
+.holo-content h3 {
+  font-family: 'Silkscreen', monospace;
+  font-size: 0.75rem;
+  color: var(--primary-light);
+  margin-bottom: 0.2rem;
+  text-shadow: 0 0 10px var(--primary);
+}
+.holo-content p {
+  font-family: 'VT323', monospace;
+  font-size: 0.9rem;
+  color: var(--text-sub);
+  letter-spacing: 0.05em;
+}
+
+/* ============================================================
+   FAVORITE SONGS (3D CAROUSEL WITH VINYL)
+============================================================ */
+.songs-container {
+  position: relative;
+  width: 100%;
+  height: 300px;
+  margin-top: 1rem;
+  perspective: 1200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 5;
+  touch-action: pan-y;
+}
+.song-card {
+  position: absolute;
+  width: 220px;
+  height: 280px;
+  background: linear-gradient(160deg, var(--bg-grad-1), var(--bg-grad-3));
+  border: 3px solid var(--primary);
+  border-radius: 16px;
+  box-shadow: 
+    0 0 0 2px var(--shadow),
+    0 0 0 5px var(--primary-dark),
+    0 20px 40px rgba(0,0,0,0.9),
+    inset 0 0 20px rgba(255,215,0,0.1);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 1.2rem;
+  transition: transform 0.6s cubic-bezier(0.16,1,0.3,1), opacity 0.6s, z-index 0s, box-shadow 0.3s;
+  transform-style: preserve-3d;
+  cursor: pointer;
+  text-align: center;
+}
+.song-card.active {
+  box-shadow: 0 0 0 2px var(--shadow), 0 0 0 6px var(--primary), 0 0 60px var(--primary-light), 0 20px 50px rgba(0,0,0,0.9);
+}
+.song-card .album-cover {
+  width: 140px;
+  height: 140px;
+  background: #000;
+  border-radius: 50%;
+  border: 3px solid var(--primary-dark);
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 20px rgba(255,215,0,0.3);
+  position: relative;
+  overflow: hidden;
+}
+/* Gambar cover album */
+.song-card .album-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+  position: absolute;
+  top: 0; left: 0;
+  transition: transform 0.3s;
+}
+/* Efek Vinyl berputar */
+.song-card.active .album-cover img {
+  animation: spinVinyl 4s linear infinite;
+}
+@keyframes spinVinyl { 100% { transform: rotate(360deg); } }
+
+/* Lubang tengah vinyl */
+.song-card .album-cover::after {
+  content: '';
+  position: absolute;
+  width: 16px; height: 16px;
+  background: var(--shadow);
+  border-radius: 50%;
+  border: 2px solid var(--primary);
+  z-index: 2;
+}
+.song-card h4 {
+  font-family: 'Silkscreen', monospace;
+  font-size: 0.75rem;
+  color: var(--primary-light);
+  margin-bottom: 0.3rem;
+  line-height: 1.2;
+  text-shadow: 0 0 8px var(--primary);
+}
+.song-card p {
+  font-family: 'VT323', monospace;
+  font-size: 1.1rem;
+  color: var(--text-sub);
+}
+.song-card .play-icon {
+  margin-top: 0.8rem;
+  width: 36px; height: 36px;
+  background: var(--accent);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; font-size: 14px;
+  border: 2px solid var(--shadow);
+  box-shadow: 0 0 10px rgba(255,62,62,0.6);
+}
+
+/* ============================================================
+   MODAL POPUP (BIODATA)
+============================================================ */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.85);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.4s ease;
+}
+.modal-overlay.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+.modal-content {
+  background: linear-gradient(160deg, var(--card-bg-1), var(--card-bg-3));
+  border: 3px solid var(--primary);
+  box-shadow: 
+    0 0 0 2px var(--shadow),
+    0 0 0 5px var(--primary-dark),
+    0 0 40px var(--primary);
+  border-radius: 16px;
+  width: min(90vw, 400px);
+  padding: 1.5rem;
+  position: relative;
+  transform: scale(0.8) translateY(50px);
+  transition: transform 0.5s cubic-bezier(0.16,1,0.3,1);
+  text-align: center;
+  overflow: hidden;
+}
+.modal-overlay.active .modal-content {
+  transform: scale(1) translateY(0);
+}
+.modal-close {
+  position: absolute;
+  top: 10px; right: 15px;
+  font-size: 1.5rem;
+  color: var(--primary);
+  cursor: pointer;
+  font-family: 'Silkscreen', monospace;
+  background: none; border: none;
+}
+.modal-close:hover { color: var(--primary-light); }
+.modal-img {
+  width: 120px; height: 120px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid var(--primary-dark);
+  box-shadow: 0 0 20px var(--primary);
+  margin: 0 auto 1rem;
+  display: block;
+}
+.modal-title {
+  font-family: 'Silkscreen', monospace;
+  font-size: 1.1rem;
+  color: var(--primary-light);
+  margin-bottom: 0.5rem;
+  text-shadow: 0 0 10px var(--primary);
+}
+.modal-bio {
+  font-family: 'VT323', monospace;
+  font-size: 1.05rem;
+  color: var(--text-sub);
+  line-height: 1.5;
+  text-align: left;
+  background: rgba(0,0,0,0.3);
+  padding: 0.8rem;
+  border-radius: 8px;
+  border: 1px solid rgba(255,215,0,0.2);
+  margin-top: 1rem;
+}
+.modal-bio span {
+  color: var(--primary);
+  font-weight: bold;
+}
+
+/* ============================================================
+   SLIDE DOTS (KANAN)
+============================================================ */
+.slide-dots{
+  position:fixed;
+  right:max(0.8rem,env(safe-area-inset-right));
+  top:50%;
+  transform:translateY(-50%);
+  display:flex;
+  flex-direction:column;
+  gap:0.5rem;
+  z-index:100;
+  padding: 0.4rem;
+  background: rgba(26,3,3,0.6);
+  border-radius: 20px;
+  border: 1px solid rgba(255,215,0,0.3);
+  backdrop-filter: blur(4px);
+}
+.slide-dot{
+  width:14px;height:14px;
+  background:var(--shadow);
+  border:2px solid var(--primary);
+  border-radius: 50%;
+  padding:0;
+  cursor:pointer;
+  transition:all 0.4s cubic-bezier(0.16,1,0.3,1);
+  position:relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.slide-dot::before {
+  content: '';
+  position: absolute;
+  inset: 2px;
+  border-radius: 50%;
+  background: transparent;
+  transition: background 0.3s;
+}
+.slide-dot:hover{
+  box-shadow:0 0 12px var(--primary);
+}
+.slide-dot.active{
+  height:32px;
+  border-radius: 10px;
+  background:var(--primary);
+  border-color:var(--primary-light);
+  box-shadow:0 0 20px var(--primary),0 0 35px var(--primary);
+  width: 14px;
+}
+.slide-dot.active::before {
+  background: var(--primary-light);
+  border-radius: 4px;
+}
+
+/* ============================================================
+   THANK YOU SLIDE
+============================================================ */
+.thankyou-text {
+  font-family:'VT323',monospace;
+  font-size:clamp(1.1rem,4vw,1.4rem);
+  line-height:1.5;
+  color:var(--text-main);
+  text-align:center;
+  margin:1rem 0;
+}
+.heart {
+  color:var(--accent);
+  font-size:2rem;
+  animation:heartBeat 1.5s infinite;
+  display:inline-block;
+  margin-top:1rem;
+}
+@keyframes heartBeat {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.2); }
+}
+
+/* ============================================================
+   TOAST
+============================================================ */
+.toast{
+  position:fixed;top:max(1rem,env(safe-area-inset-top));left:50%;transform:translate(-50%,-150%) scale(0.9);
+  background:linear-gradient(160deg,var(--card-bg-1),var(--card-bg-3));border:2px solid var(--primary);padding:0.85rem 1.2rem;z-index:200;max-width:min(92vw,420px);
+  box-shadow:0 0 0 2px var(--shadow),0 0 0 4px var(--primary),0 0 30px var(--primary);
+  transition:transform 0.5s cubic-bezier(0.16,1,0.3,1),opacity 0.4s;opacity:0;pointer-events:none;display:flex;gap:0.75rem;align-items:flex-start;
+}
+.toast.show{transform:translate(-50%,0) scale(1);opacity:1;}
+.toast .toast-icon{font-size:1.2rem;color:var(--primary-light);flex-shrink:0;text-shadow:0 0 10px var(--primary);}
+.toast .toast-body{display:flex;flex-direction:column;gap:0.2rem;text-align:left;min-width:0;}
+.toast .toast-title{font-family:'Silkscreen',monospace;font-size:0.5rem;color:var(--primary-light);letter-spacing:0.15em;text-transform:uppercase;}
+.toast .toast-text{font-family:'VT323',monospace;font-size:0.95rem;color:var(--text-main);line-height:1.3;}
+
+#confetti{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:999;image-rendering:pixelated;}
+
+/* ============================================================
+   RESPONSIVE
+============================================================ */
+@media (max-height:720px){
+  .card{padding:1.1rem 1rem;}
+  .title{font-size:clamp(1.1rem,4.8vw,1.7rem);margin-bottom:0.45rem;}
+  .subtitle{font-size:0.85rem;margin-bottom:0.8rem;line-height:1.35;}
+  .eyebrow{margin-bottom:0.5rem;font-size:0.46rem;}
+  .btn{padding:0.6rem 1.2rem;font-size:0.52rem;}
+  .divider{margin-bottom:0.6rem;}
+  .letter{max-height:26dvh;}
+  .letter-text{font-size:0.85rem;line-height:1.45;}
+  .cake-scene{width:min(180px,45vw);height:min(160px,40vw);}
+  .candle{height:36px;width:10px;}
+  .candle .flame{width:12px;height:18px;top:-18px;}
+  .audio-btn{width:44px;height:44px;}
+  .holo-card { width: 140px; height: 200px; }
+  .modal-content { padding: 1rem; }
+  .modal-img { width: 90px; height: 90px; }
+  .songs-container { height: 240px; }
+  .song-card { width: 180px; height: 220px; padding: 0.8rem; }
+  .song-card .album-cover { width: 110px; height: 110px; }
+}
+@media (orientation:landscape) and (max-height:560px){
+  .card{max-width:64vw;padding:0.75rem 1rem;}
+  .title{font-size:1rem;margin-bottom:0.3rem;}
+  .subtitle{font-size:0.75rem;margin-bottom:0.55rem;line-height:1.3;}
+  .letter{max-height:24dvh;}
+  .cake-scene{width:min(140px,32vw);height:min(120px,28vw);}
+  .holo-card { width: 110px; height: 160px; }
+  .songs-container { height: 200px; }
+  .song-card { width: 150px; height: 190px; }
+}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:0.01ms!important;animation-iteration-count:1!important;transition-duration:0.01ms!important;}}
+</style>
+</head>
+<body>
+
+<canvas id="bgCanvas"></canvas>
+
+<!-- TOAST MESSAGE -->
+<div class="toast" id="toast">
+  <div class="toast-icon" id="toastIcon">✦</div>
+  <div class="toast-body">
+    <span class="toast-title" id="toastTitle">MESSAGE</span>
+    <span class="toast-text" id="toastText">...</span>
+  </div>
+</div>
+
+<!-- AUDIO CONTROLS -->
+<div class="audio-controls">
+  <button class="audio-btn" id="musicBtn" aria-label="Toggle music">
+    <svg id="musicOnIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square" stroke-linejoin="miter">
+      <path d="M9 18V5l12-2v13" fill="none"/>
+      <circle cx="6" cy="18" r="3" fill="currentColor"/>
+      <circle cx="18" cy="16" r="3" fill="currentColor"/>
+    </svg>
+    <svg id="musicOffIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square" stroke-linejoin="miter" style="display:none">
+      <path d="M9 18V5l12-2v13" fill="none"/>
+      <circle cx="6" cy="18" r="3" fill="currentColor"/>
+      <circle cx="18" cy="16" r="3" fill="currentColor"/>
+      <line x1="2" y1="2" x2="22" y2="22" stroke-width="2.5"/>
+    </svg>
+    <span class="mini-label">MUSIC</span>
+  </button>
+  <button class="audio-btn" id="sfxBtn" aria-label="Toggle SFX">
+    <svg id="sfxOnIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill="currentColor"/>
+      <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+    </svg>
+    <svg id="sfxOffIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:none">
+      <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill="currentColor"/>
+      <line x1="23" y1="9" x2="17" y2="15"/>
+      <line x1="17" y1="9" x2="23" y2="15"/>
+    </svg>
+    <span class="mini-label">SFX</span>
+  </button>
+</div>
+
+<div class="scroller" id="scroller">
+
+  <!-- SLIDE 1 — WELCOME -->
+  <section class="slide" data-slide="0">
+    <div class="card">
+      <span class="corner tl"></span><span class="corner tr"></span>
+      <span class="corner bl"></span><span class="corner br"></span>
+      <span class="eyebrow stagger">A Special Day</span>
+      <h1 class="title stagger">生日快乐<span class="zh">HAPPY BIRTHDAY ALLENA</span></h1>
+      <div class="divider stagger"></div>
+      <p class="subtitle stagger"> TEKAN / SCROLL UNTUK MEMULAI.</p>
+      <button class="btn stagger" id="beginBtn">PENCETTTT</button>
+    </div>
+    <div class="hint"><span>SCROLL</span><div class="chev"></div></div>
+  </section>
+
+  <!-- SLIDE 2 — LETTER (SURAT UNTUK ALLENA) -->
+  <section class="slide" data-slide="1">
+    <div class="card">
+      <span class="corner tl"></span><span class="corner tr"></span>
+      <span class="corner bl"></span><span class="corner br"></span>
+      <span class="eyebrow stagger">Sebuah Pesan</span>
+      <h1 class="title stagger">一封书信<span class="zh">A LETTER FOR YOU</span></h1>
+      <div class="divider stagger" id="slide2Divider"></div>
+      <p class="subtitle stagger" id="slide2Subtitle">DARI AKUU. BUKA UNTUK MEMBACA.</p>
+
+      <div class="letter-loader" id="letterLoader">
+        <div class="loader-text" id="loaderText">LOADING MESSAGE...</div>
+        <div class="loader-bar"><div class="loader-fill" id="loaderFill"></div></div>
+        <div class="loader-percent" id="loaderPercent">0%</div>
+      </div>
+
+      <div class="letter-wrap" id="letterWrap">
+        <div class="letter">
+          <div class="letter-text" id="letterText"></div>
+        </div>
+        <div class="skip-hint" id="skipHint">[ TAP TO SKIP ]</div>
+      </div>
+
+      <button class="btn stagger" id="openLetterBtn">BUKA SURAT</button>
+    </div>
+  </section>
+
+  <!-- SLIDE 3 — CAKE & CANDLE -->
+  <section class="slide" data-slide="2">
+    <div class="card">
+      <span class="corner tl"></span><span class="corner tr"></span>
+      <span class="corner bl"></span><span class="corner br"></span>
+      <span class="eyebrow stagger">Make a Wish</span>
+      <h1 class="title stagger">生日蛋糕<span class="zh">BIRTHDAY CAKE</span></h1>
+      <div class="divider stagger"></div>
+      <p class="subtitle stagger">TIUP LILIN NYA WOYYYY.</p>
+
+      <div class="cake-scene" id="cakeScene">
+        <div class="plate"></div>
+        <div class="cake-body">
+          <div class="sprinkles"></div>
+        </div>
+        <div class="candle" data-candle="0"><div class="flame"></div></div>
+        <div class="candle" data-candle="1"><div class="flame"></div></div>
+        <div class="candle" data-candle="2"><div class="flame"></div></div>
+        <div class="candle" data-candle="3"><div class="flame"></div></div>
+      </div>
+
+      <div class="hint-blow" id="candleHint">TAP A CANDLE TO BLOW IT OUT</div>
+      <button class="btn ghost" id="relightBtn">NYALAKAN LAGI</button>
+    </div>
+  </section>
+
+  <!-- SLIDE 4 — WISH LANTERN -->
+  <section class="slide" data-slide="3">
+    <div class="card">
+      <span class="corner tl"></span><span class="corner tr"></span>
+      <span class="corner bl"></span><span class="corner br"></span>
+      <span class="eyebrow stagger">Wish Lantern</span>
+      <h1 class="title stagger">许愿<span class="zh">WRITE A WISH</span></h1>
+      <div class="divider stagger"></div>
+      <p class="subtitle stagger">Isi aja bebasss</p>
+
+      <div class="wish-form">
+        <input type="text" class="wish-input" id="wishInput" placeholder="Tulis keinginanmu di sini..." maxlength="80">
+        <div class="wish-btn-row">
+          <button class="btn" id="wishBtn">LEPASKAN</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SLIDE 5 — YOUR FAVORITE BOY (2 ORANG) -->
+  <section class="slide" data-slide="4">
+    <div class="card">
+      <span class="corner tl"></span><span class="corner tr"></span>
+      <span class="corner bl"></span><span class="corner br"></span>
+      <span class="eyebrow stagger">Special Person</span>
+      <h1 class="title stagger">COWOK<br>FAVORIT</h1>
+      <div class="divider stagger"></div>
+      
+      <div class="holo-card-container">
+        <!-- FOTO & BIODATA TIAN -->
+        <div class="holo-card" data-tilt data-name="Tian Ganteng" data-bio="<span>Nama:</span> TIAN<br><span>Status:</span> YA ITU<br><span>Sifat:</span> SANGAT BAIK <br><br>SANGAT SIGMA DAN TAMPAN">
+          <img src="tian.jpg" alt="Favorite Boy 1">
+          <div class="holo-content">
+            <h3>TIAN GANTENG</h3>
+            <p>SIGMA Boy</p>
+          </div>
+        </div>
+        <!-- FOTO & BIODATA ZHANG LING HE -->
+        <div class="holo-card" data-tilt data-name="Zhang Ling He" data-bio="<span>Nama Lengkap:</span> Zhang Ling He (张凌赫)<br><span>Lahir:</span> 30 Desember 1997<br><span>Tinggi:</span> 188 cm<br><span>Profesi:</span> Aktor<br><span>Karya:</span> Story of Kunning Palace, My Journey to You.<br><br>Aktor tampan asal Tiongkok ini dikenal dengan senyum khasnya yang memikat banyak penggemar.">
+          <img src="https://i.mydramalist.com/l0K1mJ_2f.png" alt="Zhang Ling He">
+          <div class="holo-content">
+            <h3>ZHANG LING HE</h3>
+            <p>Actor / Idol</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SLIDE 6 — FAVORITE SONG (3D CAROUSEL WITH VINYL & GAMBAR) -->
+  <section class="slide" data-slide="5">
+    <div class="card">
+      <span class="corner tl"></span><span class="corner tr"></span>
+      <span class="corner bl"></span><span class="corner br"></span>
+      <span class="eyebrow stagger">Playlist</span>
+      <h1 class="title stagger">Your Favorite<br>Song</h1>
+      <div class="divider stagger"></div>
+      
+      <div class="songs-container" id="songsCarousel">
+        
+        <!-- LAGU 1: SEMPURNANYA AKU -->
+        <div class="song-card" data-url="https://youtu.be/gsOzdYYrUEM">
+          <div class="album-cover">
+            <img src="https://i.scdn.co/image/ab67616d0000b2739bf9c34727694deffc7502a6" alt="Sempurnanya Aku">
+          </div>
+          <h4>SEMPURNANYA AKU</h4>
+          <p>NPD</p>
+          <div class="play-icon">▶</div>
+        </div>
+
+        <!-- LAGU 2: RINDU SENDIRI -->
+        <div class="song-card" data-url="https://youtu.be/apCmyO5-cC0">
+          <div class="album-cover">
+            <img src="https://i.scdn.co/image/ab67616d0000b273ea46fea516653611ad188d11" alt="Rindu Sendiri">
+          </div>
+          <h4>RINDU SENDIRI</h4>
+          <p>Iqbal</p>
+          <div class="play-icon">▶</div>
+        </div>
+
+        <!-- LAGU 3: WHO KNOWS -->
+        <div class="song-card" data-url="https://youtu.be/glscfhJyZHo">
+          <div class="album-cover">
+            <img src="https://i.scdn.co/image/ab67616d00001e022bad6e56e77d5bef0aa3f2dc" alt="Who Knows">
+          </div>
+          <h4>WHO KNOWS</h4>
+          <p>Daniel Caesar</p>
+          <div class="play-icon">▶</div>
+        </div>
+
+        <!-- LAGU 4: PANDANGAN PERTAMA -->
+        <div class="song-card" data-url="https://youtu.be/yytLnDAN1MY">
+          <div class="album-cover">
+            <img src="https://rri-portal-app-assets.obs.ap-southeast-4.myhuaweicloud.com/upload/berita/image/pontianak/1779508138466485_4885ca7495_berita_pontianak.webp" alt="Pandangan Pertama">
+          </div>
+          <h4>PANDANGAN PERTAMA</h4>
+          <p>Ran</p>
+          <div class="play-icon">▶</div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- SLIDE 7 — TERIMA KASIH -->
+  <section class="slide" data-slide="6">
+    <div class="card">
+      <span class="corner tl"></span><span class="corner tr"></span>
+      <span class="corner bl"></span><span class="corner br"></span>
+      <span class="eyebrow stagger">The End</span>
+      <h1 class="title stagger">谢谢观看<span class="zh">THANK YOU</span></h1>
+      <div class="divider stagger"></div>
+      
+      <p class="thankyou-text stagger">
+        SORRY YA MISALKAN WEBNYA KURANG BAGUS, KATA KAMU BAGUS GAK WKKWKWKW, NANTI AKU BAGUSIN LAGI<br>
+        DAHH ILY<br>
+        
+      </p>
+
+      <div class="heart stagger">♥</div>
+    </div>
+  </section>
+
+</div>
+
+<div class="slide-dots" id="slideDots">
+  <button class="slide-dot active" data-go="0"></button>
+  <button class="slide-dot" data-go="1"></button>
+  <button class="slide-dot" data-go="2"></button>
+  <button class="slide-dot" data-go="3"></button>
+  <button class="slide-dot" data-go="4"></button>
+  <button class="slide-dot" data-go="5"></button>
+  <button class="slide-dot" data-go="6"></button>
+</div>
+
+<canvas id="confetti"></canvas>
+
+<!-- MODAL POPUP (BIODATA) -->
+<div class="modal-overlay" id="bioModal">
+  <div class="modal-content">
+    <button class="modal-close" id="modalClose">×</button>
+    <img src="" alt="Foto" class="modal-img" id="modalImg">
+    <h2 class="modal-title" id="modalTitle">Nama</h2>
+    <div class="modal-bio" id="modalBio">Biodata...</div>
+  </div>
+</div>
+
+<script>
+(function(){
+  'use strict';
+
+  var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var DPR = Math.min(window.devicePixelRatio || 1, 1.5);
+
+  /* ============================================================
+     AUDIO ENGINE
+  ============================================================ */
+  var audioCtx = null;
+  var masterGain = null;
+  var musicGain = null;
+  var sfxGain = null;
+  var musicDuckGain = null;
+
+  var musicEnabled = true;
+  var sfxEnabled = true;
+  var musicPlaying = false;
+  var musicTimer = null;
+  var musicStartTimer = null;
+
+  var sfxGates = {};
+  function trySfx(key, minInterval){
+    var now = performance.now();
+    if (sfxGates[key] && now - sfxGates[key] < minInterval) return false;
+    sfxGates[key] = now;
+    return true;
+  }
+
+  function initAudioGraph(){
+    if (audioCtx) return audioCtx;
+    try {
+      var AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return null;
+      audioCtx = new AC();
+
+      masterGain = audioCtx.createGain();
+      masterGain.gain.value = 0.9;
+      masterGain.connect(audioCtx.destination);
+
+      musicGain = audioCtx.createGain();
+      musicGain.gain.value = 0.45;
+      musicGain.connect(masterGain);
+
+      sfxGain = audioCtx.createGain();
+      sfxGain.gain.value = 0.85;
+      sfxGain.connect(masterGain);
+
+      musicDuckGain = audioCtx.createGain();
+      musicDuckGain.gain.value = 1.0;
+      musicDuckGain.connect(musicGain);
+    } catch(e){ return null; }
+    return audioCtx;
+  }
+
+  function ensureAudio(){
+    if (!audioCtx) initAudioGraph();
+    if (audioCtx && audioCtx.state === 'suspended'){
+      audioCtx.resume().catch(function(){});
+    }
+    return audioCtx;
+  }
+
+  var duckTimer = null;
+  function duckMusic(duration){
+    if (!musicDuckGain || !audioCtx) return;
+    if (!musicEnabled || !musicPlaying) return;
+    var now = audioCtx.currentTime;
+    try {
+      musicDuckGain.gain.cancelScheduledValues(now);
+      musicDuckGain.gain.setValueAtTime(musicDuckGain.gain.value, now);
+      musicDuckGain.gain.linearRampToValueAtTime(0.35, now + 0.05);
+    } catch(e){}
+    if (duckTimer) clearTimeout(duckTimer);
+    duckTimer = setTimeout(function(){
+      if (!musicDuckGain || !audioCtx) return;
+      var t = audioCtx.currentTime;
+      try {
+        musicDuckGain.gain.cancelScheduledValues(t);
+        musicDuckGain.gain.setValueAtTime(musicDuckGain.gain.value, t);
+        musicDuckGain.gain.linearRampToValueAtTime(1.0, t + 0.25);
+      } catch(e){}
+    }, duration || 300);
+  }
+
+  /* ============================================================
+     NOTE FREQUENCIES & JAZZ SONG
+  ============================================================ */
+  var N = {
+    C3: 130.81, E3: 164.81, F3: 174.61, G3: 196.00, B3: 246.94,
+    C4: 261.63, D4: 293.66, E4: 329.63, F4: 349.23, Fs4: 369.99, G4: 392.00, A4: 440.00, B4: 493.88,
+    C5: 523.25, D5: 587.33, E5: 659.25, F5: 698.46, G5: 783.99
+  };
+
+  var MELODY_JAZZ = [
+    {n: N.D4, d: 0.5}, {n: N.D4, d: 0.5}, {n: N.E4, d: 1.0}, {n: N.D4, d: 1.0}, {n: N.G4, d: 1.0}, {n: N.Fs4, d: 2.0},
+    {n: N.D4, d: 0.5}, {n: N.D4, d: 0.5}, {n: N.E4, d: 1.0}, {n: N.D4, d: 1.0}, {n: N.A4, d: 1.0}, {n: N.G4, d: 2.0},
+    {n: N.D4, d: 0.5}, {n: N.D4, d: 0.5}, {n: N.D5, d: 1.0}, {n: N.B4, d: 1.0}, {n: N.G4, d: 1.0}, {n: N.Fs4, d: 1.0}, {n: N.E4, d: 1.0},
+    {n: N.C5, d: 0.5}, {n: N.C5, d: 0.5}, {n: N.B4, d: 1.0}, {n: N.G4, d: 1.0}, {n: N.A4, d: 1.0}, {n: N.G4, d: 2.0}
+  ];
+
+  var HARMONY_JAZZ = [
+    {t: 0, notes: [N.E4, N.G4, N.B4, N.D5]}, {t: 4, notes: [N.D4, N.Fs4, N.A4, N.C5]},
+    {t: 8, notes: [N.F4, N.A4, N.C5, N.E5]}, {t: 12, notes: [N.E4, N.G4, N.B4, N.D5]},
+    {t: 16, notes: [N.E4, N.G4, N.B4, N.D5]}, {t: 20, notes: [N.F4, N.A4, N.C5, N.E5]},
+    {t: 24, notes: [N.D4, N.Fs4, N.A4, N.C5]}, {t: 28, notes: [N.E4, N.G4, N.B4, N.D5]}
+  ];
+
+  var BASS_JAZZ = [
+    {t:0,n:N.C3},{t:1,n:N.E3},{t:2,n:N.G3},{t:3,n:N.B3},
+    {t:4,n:N.G3},{t:5,n:N.B3},{t:6,n:N.D5},{t:7,n:N.Fs4},
+    {t:8,n:N.F3},{t:9,n:N.A4},{t:10,n:N.C5},{t:11,n:N.E5},
+    {t:12,n:N.C3},{t:13,n:N.E3},{t:14,n:N.G3},{t:15,n:N.B3},
+    {t:16,n:N.C3},{t:17,n:N.E3},{t:18,n:N.G3},{t:19,n:N.B3},
+    {t:20,n:N.F3},{t:21,n:N.A4},{t:22,n:N.C5},{t:23,n:N.E5},
+    {t:24,n:N.G3},{t:25,n:N.B3},{t:26,n:N.D5},{t:27,n:N.Fs4},
+    {t:28,n:N.C3},{t:29,n:N.E3},{t:30,n:N.G3},{t:31,n:N.B3}
+  ];
+
+  var BPM = 120;
+  var BEAT = 60 / BPM;
+  var activeNodes = [];
+
+  function scheduleJazzNote(freq, startTime, duration, type, volume, channel){
+    if (!audioCtx || !musicEnabled || !musicPlaying) return;
+    try {
+      var osc = audioCtx.createOscillator();
+      var gain = audioCtx.createGain();
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, startTime);
+      gain.gain.setValueAtTime(0, startTime);
+      gain.gain.linearRampToValueAtTime(volume, startTime + 0.02);
+      gain.gain.setValueAtTime(volume * 0.7, startTime + duration * 0.5);
+      gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
+      osc.connect(gain);
+      gain.connect(channel || musicDuckGain);
+      osc.start(startTime);
+      osc.stop(startTime + duration + 0.05);
+      activeNodes.push(osc);
+      osc.onended = function(){ var i = activeNodes.indexOf(osc); if (i > -1) activeNodes.splice(i, 1); };
+    } catch(e){}
+  }
+
+  function scheduleHat(startTime, volume){
+    if (!audioCtx || !musicEnabled || !musicPlaying) return;
+    try {
+      var bs = Math.floor(audioCtx.sampleRate * 0.05);
+      var buf = audioCtx.createBuffer(1, bs, audioCtx.sampleRate);
+      var data = buf.getChannelData(0);
+      for (var i = 0; i < bs; i++) data[i] = Math.random() * 2 - 1;
+      var src = audioCtx.createBufferSource();
+      src.buffer = buf;
+      var filter = audioCtx.createBiquadFilter();
+      filter.type = 'bandpass'; filter.frequency.value = 8000; filter.Q.value = 1.2;
+      var gain = audioCtx.createGain();
+      gain.gain.setValueAtTime(volume, startTime);
+      gain.gain.exponentialRampToValueAtTime(0.0001, startTime + 0.05);
+      src.connect(filter); filter.connect(gain); gain.connect(musicDuckGain);
+      src.start(startTime); src.stop(startTime + 0.06);
+      activeNodes.push(src);
+    } catch(e){}
+  }
+
+  function playJazzLoop(){
+    if (!audioCtx || !musicPlaying || !musicEnabled) return;
+    var startTime = audioCtx.currentTime + 0.1;
+    var t = 0;
+    for (var i = 0; i < MELODY_JAZZ.length; i++){
+      var note = MELODY_JAZZ[i];
+      var swingOffset = (i % 2 === 1) ? BEAT * 0.15 : 0;
+      scheduleJazzNote(note.n, startTime + (t + swingOffset) * BEAT, note.d * BEAT * 0.9, 'square', 0.06, musicDuckGain);
+      t += note.d;
+    }
+    for (var h = 0; h < HARMONY_JAZZ.length; h++){
+      var hData = HARMONY_JAZZ[h];
+      for (var c = 0; c < hData.notes.length; c++){
+        scheduleJazzNote(hData.notes[c], startTime + hData.t * BEAT + c * BEAT * 0.12, BEAT * 0.6, 'triangle', 0.025, musicDuckGain);
+      }
+    }
+    for (var b = 0; b < BASS_JAZZ.length; b++){
+      var bData = BASS_JAZZ[b];
+      scheduleJazzNote(bData.n, startTime + bData.t * BEAT, BEAT * 0.9, 'triangle', 0.08, musicDuckGain);
+    }
+    var totalBeats = 32;
+    for (var beat = 0; beat < totalBeats; beat++){
+      scheduleHat(startTime + beat * BEAT, 0.012);
+      scheduleHat(startTime + (beat + 0.66) * BEAT, 0.008);
+    }
+    var loopDurMs = totalBeats * BEAT * 1000;
+    if (musicTimer) clearTimeout(musicTimer);
+    musicTimer = setTimeout(function(){ if (musicPlaying && musicEnabled) playJazzLoop(); }, loopDurMs + 2000);
+  }
+
+  function startMusic(){
+    if (musicPlaying || !musicEnabled) return;
+    var ac = ensureAudio(); if (!ac) return;
+    if (ac.state === 'suspended') ac.resume();
+    musicPlaying = true;
+    updateMusicUI();
+    if (musicStartTimer) clearTimeout(musicStartTimer);
+    musicStartTimer = setTimeout(function(){ playJazzLoop(); }, 200);
+  }
+
+  function stopMusic(){
+    musicPlaying = false;
+    if (musicTimer){ clearTimeout(musicTimer); musicTimer = null; }
+    if (musicStartTimer){ clearTimeout(musicStartTimer); musicStartTimer = null; }
+    for (var i = 0; i < activeNodes.length; i++){ try { activeNodes[i].stop(); } catch(e){} }
+    activeNodes = [];
+    updateMusicUI();
+  }
+
+  function updateMusicUI(){
+    var btn = document.getElementById('musicBtn');
+    var onIcon = document.getElementById('musicOnIcon');
+    var offIcon = document.getElementById('musicOffIcon');
+    if (musicPlaying && musicEnabled){
+      btn.classList.remove('off'); onIcon.style.display = 'block'; offIcon.style.display = 'none';
+    } else {
+      btn.classList.add('off'); onIcon.style.display = 'none'; offIcon.style.display = 'block';
+    }
+  }
+
+  function updateSfxUI(){
+    var btn = document.getElementById('sfxBtn');
+    var onIcon = document.getElementById('sfxOnIcon');
+    var offIcon = document.getElementById('sfxOffIcon');
+    if (sfxEnabled){
+      btn.classList.remove('off'); onIcon.style.display = 'block'; offIcon.style.display = 'none';
+    } else {
+      btn.classList.add('off'); onIcon.style.display = 'none'; offIcon.style.display = 'block';
+    }
+  }
+
+  /* ============================================================
+     SFX
+  ============================================================ */
+  function playSfx(freq, duration, type, volume, delay){
+    if (!audioCtx || !sfxEnabled) return;
+    var t = audioCtx.currentTime + (delay || 0);
+    try {
+      var osc = audioCtx.createOscillator();
+      var gain = audioCtx.createGain();
+      osc.type = type || 'square';
+      osc.frequency.setValueAtTime(freq, t);
+      gain.gain.setValueAtTime(0, t);
+      gain.gain.linearRampToValueAtTime(volume || 0.06, t + 0.008);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t + duration);
+      osc.connect(gain); gain.connect(sfxGain);
+      osc.start(t); osc.stop(t + duration + 0.03);
+    } catch(e){}
+  }
+
+  // Suara tiupan lilin realistis (Noise)
+  function playBlowSfx(){
+    if (!audioCtx || !sfxEnabled) return;
+    if (!trySfx('blow', 300)) return;
+    duckMusic(400);
+    var t = audioCtx.currentTime;
+    var bufferSize = audioCtx.sampleRate * 0.4; // 0.4 detik
+    var buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+    var data = buffer.getChannelData(0);
+    for (var i = 0; i < bufferSize; i++) {
+      data[i] = Math.random() * 2 - 1;
+    }
+    var src = audioCtx.createBufferSource();
+    src.buffer = buffer;
+
+    var filter = audioCtx.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.setValueAtTime(800, t);
+    filter.frequency.exponentialRampToValueAtTime(300, t + 0.3);
+    filter.Q.value = 1.5;
+
+    var gain = audioCtx.createGain();
+    gain.gain.setValueAtTime(0, t);
+    gain.gain.linearRampToValueAtTime(0.5, t + 0.05); // Attack cepat
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.35); // Decay
+
+    src.connect(filter);
+    filter.connect(gain);
+    gain.connect(sfxGain);
+    src.start(t);
+    src.stop(t + 0.4);
+  }
+
+  var PENTA = [523, 587, 659, 784, 880, 1047, 1175, 1319];
+  function sfxClick(){ if (!trySfx('click', 60)) return; duckMusic(200); playSfx(PENTA[0], 0.08, 'square', 0.05); }
+  function sfxConfirm(){
+    if (!trySfx('confirm', 100)) return; duckMusic(400);
+    playSfx(PENTA[0], 0.1, 'square', 0.055); playSfx(PENTA[2], 0.1, 'square', 0.055, 0.06); playSfx(PENTA[4], 0.18, 'square', 0.055, 0.12);
+  }
+  function sfxOpen(){
+    if (!trySfx('open', 200)) return; duckMusic(500);
+    playSfx(PENTA[0], 0.12, 'triangle', 0.05); playSfx(PENTA[3], 0.12, 'triangle', 0.05, 0.08);
+    playSfx(PENTA[5], 0.16, 'triangle', 0.05, 0.16); playSfx(PENTA[7], 0.28, 'triangle', 0.05, 0.26);
+  }
+  function sfxType(){ if (!trySfx('type', 40)) return; playSfx(PENTA[Math.floor(Math.random() * 5)] * 2, 0.025, 'square', 0.022); }
+  function sfxFinish(){
+    if (!trySfx('finish', 300)) return; duckMusic(700);
+    playSfx(PENTA[0], 0.12, 'square', 0.05); playSfx(PENTA[2], 0.12, 'square', 0.05, 0.1);
+    playSfx(PENTA[4], 0.12, 'square', 0.05, 0.2); playSfx(PENTA[7], 0.35, 'square', 0.055, 0.3);
+  }
+  function sfxFirework(){
+    if (!trySfx('fw', 250)) return; duckMusic(400);
+    playSfx(180, 0.2, 'sawtooth', 0.04); playSfx(PENTA[5], 0.12, 'square', 0.04, 0.1); playSfx(PENTA[7], 0.16, 'square', 0.04, 0.24);
+  }
+  function sfxNav(){ if (!trySfx('nav', 80)) return; duckMusic(180); playSfx(PENTA[3], 0.05, 'square', 0.035); }
+  function sfxWish(){
+    if (!trySfx('wish', 300)) return; duckMusic(600);
+    for (var i = 0; i < 8; i++) playSfx(200 + i * 100, 0.1, 'sawtooth', 0.03, i * 0.05);
+    playSfx(PENTA[7], 0.3, 'square', 0.05, 0.4);
+  }
+
+  /* ============================================================
+     AUDIO BUTTONS
+  ============================================================ */
+  document.getElementById('musicBtn').addEventListener('click', function(e){
+    e.stopPropagation();
+    musicEnabled = !musicEnabled;
+    if (musicEnabled){
+      ensureAudio(); startMusic(); if (sfxEnabled) playSfx(PENTA[4], 0.1, 'square', 0.04);
+    } else { stopMusic(); }
+    updateMusicUI();
+  });
+
+  document.getElementById('sfxBtn').addEventListener('click', function(e){
+    e.stopPropagation();
+    sfxEnabled = !sfxEnabled;
+    updateSfxUI();
+    if (sfxEnabled){
+      ensureAudio(); playSfx(PENTA[4], 0.1, 'square', 0.04); playSfx(PENTA[6], 0.1, 'square', 0.04, 0.06);
+    }
+  });
+
+  var musicAutoStarted = false;
+  function tryAutoStartMusic(){
+    if (musicAutoStarted) return;
+    musicAutoStarted = true; ensureAudio(); if (musicEnabled) startMusic();
+    document.removeEventListener('touchstart', tryAutoStartMusic);
+    document.removeEventListener('mousedown', tryAutoStartMusic);
+    document.removeEventListener('keydown', tryAutoStartMusic);
+  }
+  document.addEventListener('touchstart', tryAutoStartMusic, { passive: true });
+  document.addEventListener('mousedown', tryAutoStartMusic);
+  document.addEventListener('keydown', tryAutoStartMusic);
+
+  /* ============================================================
+     BACKGROUND CANVAS
+  ============================================================ */
+  (function bg(){
+    var canvas = document.getElementById('bgCanvas');
+    var ctx = canvas.getContext('2d', { alpha: true });
+    var W, H;
+    var balloons = [], gifts = [], cupcakes = [], clouds = [], stars = [];
+
+    function resize(){
+      W = window.innerWidth; H = window.innerHeight;
+      canvas.width = W * DPR; canvas.height = H * DPR;
+      ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+      ctx.imageSmoothingEnabled = false;
+      initAll();
+    }
+
+    function initAll(){ initBalloons(); initGifts(); initCupcakes(); initClouds(); initStars(); }
+
+    function initBalloons(){
+      balloons = [];
+      var count = Math.min(6, Math.max(4, Math.floor(W / 200)));
+      var palette = ['#ff3e3e','#ffd700','#ffe680','#ff8a40','#e82020'];
+      for (var i = 0; i < count; i++){
+        balloons.push({ x: Math.random() * W, y: Math.random() * H, size: 22 + Math.random() * 18, vy: -0.15 - Math.random() * 0.2, sway: Math.random() * Math.PI * 2, swaySpeed: 0.008 + Math.random() * 0.01, swayAmp: 12 + Math.random() * 16, color: palette[Math.floor(Math.random() * palette.length)], alpha: 0.7 + Math.random() * 0.25 });
+      }
+    }
+    function initGifts(){
+      gifts = [];
+      var count = Math.min(3, Math.max(2, Math.floor(W / 350)));
+      for (var i = 0; i < count; i++){
+        gifts.push({ x: Math.random() * W, y: Math.random() * H, size: 28 + Math.random() * 12, vy: -0.08 - Math.random() * 0.12, sway: Math.random() * Math.PI * 2, swaySpeed: 0.005 + Math.random() * 0.008, swayAmp: 8 + Math.random() * 12, alpha: 0.55 + Math.random() * 0.25 });
+      }
+    }
+    function initCupcakes(){
+      cupcakes = [];
+      var count = Math.min(3, Math.max(2, Math.floor(W / 350)));
+      for (var i = 0; i < count; i++){
+        cupcakes.push({ x: Math.random() * W, y: Math.random() * H, size: 24 + Math.random() * 10, vy: -0.1 - Math.random() * 0.14, sway: Math.random() * Math.PI * 2, swaySpeed: 0.006 + Math.random() * 0.009, swayAmp: 10 + Math.random() * 14, alpha: 0.5 + Math.random() * 0.25 });
+      }
+    }
+    function initClouds(){
+      clouds = [];
+      for (var i = 0; i < 6; i++){ clouds.push({ x: Math.random() * W, y: Math.random() * H * 0.7, size: 80 + Math.random() * 90, vx: -0.06 - Math.random() * 0.1, alpha: 0.08 + Math.random() * 0.06 }); }
+    }
+    function initStars(){
+      stars = [];
+      var count = Math.min(70, Math.floor((W * H) / 22000));
+      for (var i = 0; i < count; i++){
+        stars.push({ x: Math.floor(Math.random() * W / 3) * 3, y: Math.floor(Math.random() * H / 3) * 3, size: Math.random() < 0.7 ? 2 : 3, a: 0.4 + Math.random() * 0.55, tw: Math.random() * Math.PI * 2, speed: 0.02 + Math.random() * 0.03, color: Math.random() < 0.5 ? '#ffe680' : '#fff8d8' });
+      }
+    }
+
+    function drawBalloon(x, y, size, color, alpha){
+      ctx.save(); ctx.globalAlpha = alpha; var bx = Math.floor(x / 3) * 3; var by = Math.floor(y / 3) * 3; var s = Math.max(18, Math.floor(size / 4) * 4);
+      ctx.strokeStyle = 'rgba(255,230,128,0.5)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(bx, by + s * 0.8); ctx.quadraticCurveTo(bx + 4, by + s * 1.2, bx, by + s * 1.5); ctx.stroke();
+      ctx.fillStyle = color; ctx.fillRect(bx - s * 0.4, by - s * 0.4, s * 0.8, s * 1.1); ctx.fillRect(bx - s * 0.5, by - s * 0.2, s * 1.0, s * 0.7); ctx.fillRect(bx - s * 0.45, by - s * 0.35, s * 0.9, s * 0.9);
+      ctx.fillStyle = 'rgba(255,255,255,0.3)'; ctx.fillRect(bx - s * 0.3, by - s * 0.3, s * 0.2, s * 0.4);
+      ctx.fillStyle = color; ctx.fillRect(bx - 2, by + s * 0.75, 4, 4);
+      var g = ctx.createRadialGradient(bx, by, 0, bx, by, s * 1.5); g.addColorStop(0, 'rgba(255,215,0,0.15)'); g.addColorStop(1, 'rgba(255,215,0,0)'); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(bx, by, s * 1.5, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+    }
+    function drawGift(x, y, size, alpha){
+      ctx.save(); ctx.globalAlpha = alpha; var bx = Math.floor(x / 3) * 3; var by = Math.floor(y / 3) * 3; var s = Math.max(20, Math.floor(size / 4) * 4);
+      ctx.fillStyle = '#e82020'; ctx.fillRect(bx - s * 0.5, by - s * 0.3, s, s * 0.9); ctx.fillStyle = '#c11a1a'; ctx.fillRect(bx - s * 0.55, by - s * 0.5, s * 1.1, s * 0.25);
+      ctx.fillStyle = '#ffd700'; ctx.fillRect(bx - 2, by - s * 0.5, 4, s * 1.1); ctx.fillRect(bx - s * 0.5, by - 2, s, 4);
+      ctx.fillStyle = '#ffe680'; ctx.fillRect(bx - s * 0.2, by - s * 0.6, s * 0.15, s * 0.15); ctx.fillRect(bx + s * 0.05, by - s * 0.6, s * 0.15, s * 0.15);
+      ctx.fillStyle = 'rgba(255,255,255,0.3)'; ctx.fillRect(bx - s * 0.35, by + s * 0.15, 3, 3); ctx.fillRect(bx + s * 0.3, by + s * 0.2, 3, 3); ctx.fillRect(bx - s * 0.2, by + s * 0.4, 3, 3);
+      var g = ctx.createRadialGradient(bx, by, 0, bx, by, s * 1.3); g.addColorStop(0, 'rgba(255,215,0,0.12)'); g.addColorStop(1, 'rgba(255,215,0,0)'); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(bx, by, s * 1.3, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+    }
+    function drawCupcake(x, y, size, alpha){
+      ctx.save(); ctx.globalAlpha = alpha; var bx = Math.floor(x / 3) * 3; var by = Math.floor(y / 3) * 3; var s = Math.max(18, Math.floor(size / 4) * 4);
+      ctx.fillStyle = '#c11a1a'; ctx.fillRect(bx - s * 0.4, by + s * 0.1, s * 0.8, s * 0.5); ctx.fillStyle = '#ff3e3e'; ctx.fillRect(bx - s * 0.4, by + s * 0.2, s * 0.8, 2); ctx.fillRect(bx - s * 0.4, by + s * 0.35, s * 0.8, 2); ctx.fillRect(bx - s * 0.4, by + s * 0.5, s * 0.8, 2);
+      ctx.fillStyle = '#fff2c0'; ctx.fillRect(bx - s * 0.4, by - s * 0.05, s * 0.8, s * 0.25); ctx.fillRect(bx - s * 0.3, by - s * 0.2, s * 0.6, s * 0.2); ctx.fillRect(bx - s * 0.15, by - s * 0.3, s * 0.3, s * 0.15);
+      ctx.fillStyle = '#ff3e3e'; ctx.fillRect(bx - 2, by - s * 0.45, 4, 4);
+      var g = ctx.createRadialGradient(bx, by, 0, bx, by, s * 1.3); g.addColorStop(0, 'rgba(255,230,128,0.12)'); g.addColorStop(1, 'rgba(255,230,128,0)'); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(bx, by, s * 1.3, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+    }
+    function drawMoon(){
+      var mx = W * 0.85, my = H * 0.15; var mr = Math.min(W, H) * 0.085; var blocks = 14; var bs = Math.ceil((mr * 2) / blocks);
+      for (var by2 = 0; by2 < blocks; by2++){ for (var bx2 = 0; bx2 < blocks; bx2++){
+        var px = mx - mr + bx2 * bs; var py = my - mr + by2 * bs; var cx = px + bs / 2 - mx; var cy = py + bs / 2 - my; var dist = Math.sqrt(cx * cx + cy * cy);
+        if (dist < mr * 0.95){ var shade = 1 - dist / mr; ctx.fillStyle = 'rgb(255,' + Math.floor(240 - shade * 30) + ',' + Math.floor(160 - shade * 60) + ')'; ctx.fillRect(Math.floor(px / 3) * 3, Math.floor(py / 3) * 3, bs, bs); }
+      }}
+      var halo = ctx.createRadialGradient(mx, my, mr * 0.8, mx, my, mr * 2.8); halo.addColorStop(0, 'rgba(255,230,150,0.28)'); halo.addColorStop(1, 'rgba(255,230,150,0)'); ctx.fillStyle = halo; ctx.beginPath(); ctx.arc(mx, my, mr * 2.8, 0, Math.PI * 2); ctx.fill();
+    }
+    function drawPagoda(){
+      var baseX = W * 0.5, baseY = H * 0.92; var scale = Math.min(W, H) / 700; if (scale < 0.7) scale = 0.7;
+      ctx.save(); ctx.fillStyle = 'rgba(42,10,5,0.75)'; var w = 60 * scale, h = 280 * scale; var topY = baseY - h;
+      for (var t = 0; t < 3; t++){
+        var tw = w * (1 - t * 0.25); var ty = baseY - (t * 70 * scale) - 40 * scale; var th = 55 * scale; ctx.fillRect(baseX - tw / 2, ty - th, tw, th);
+        for (var r = 0; r < 10; r++){ var rw = tw * (1 - r * 0.09); var rh = th * 0.05; ctx.fillRect(baseX - rw / 2, ty - th - (r + 1) * rh, rw, rh + 1); }
+      }
+      ctx.fillRect(baseX - 2, topY - 30 * scale, 4, 30 * scale); ctx.fillStyle = 'rgba(255,230,128,0.7)'; ctx.fillRect(baseX - 5, topY - 40 * scale, 10, 10); ctx.restore();
+    }
+    function drawCloud(x, y, size, alpha){
+      var s = Math.max(3, Math.floor(size / 8)); ctx.save(); ctx.globalAlpha = alpha; ctx.fillStyle = 'var(--primary-dark)'; var cx = Math.floor(x / 3) * 3; var cy = Math.floor(y / 3) * 3;
+      var pattern = [[0,0,s,2],[-s,0,s*0.5,2],[s,0,s*0.5,2],[-s*1.5,2,s*0.7,2],[-s*0.3,2,s*2,2],[s*1.3,2,s*0.7,2],[-s*1.2,4,s*0.5,2],[s*0.9,4,s*0.5,2]];
+      for (var i = 0; i < pattern.length; i++){ var p = pattern[i]; ctx.fillRect(cx + p[0], cy + p[1], p[2], p[3]); } ctx.restore();
+    }
+
+    var lastDraw = 0, targetInterval = 1000 / 30, raf = null;
+
+    function draw(now){
+      raf = null; if (now - lastDraw < targetInterval){ raf = requestAnimationFrame(draw); return; } lastDraw = now;
+      var grad = ctx.createLinearGradient(0, 0, 0, H);
+      grad.addColorStop(0, getComputedStyle(document.body).getPropertyValue('--bg-grad-1').trim());
+      grad.addColorStop(0.25, getComputedStyle(document.body).getPropertyValue('--bg-grad-2').trim());
+      grad.addColorStop(0.55, getComputedStyle(document.body).getPropertyValue('--bg-grad-3').trim());
+      grad.addColorStop(0.85, getComputedStyle(document.body).getPropertyValue('--bg-grad-4').trim());
+      grad.addColorStop(1, getComputedStyle(document.body).getPropertyValue('--bg').trim());
+      
+      ctx.fillStyle = grad; ctx.fillRect(0, 0, W, H);
+      
+      var sunGrad = ctx.createRadialGradient(W * 0.5, H * 0.75, 0, W * 0.5, H * 0.75, W * 0.6);
+      sunGrad.addColorStop(0, 'rgba(255,180,80,0.22)'); sunGrad.addColorStop(0.4, 'rgba(255,120,40,0.1)'); sunGrad.addColorStop(1, 'rgba(255,120,40,0)');
+      ctx.fillStyle = sunGrad; ctx.fillRect(0, 0, W, H);
+
+      drawMoon();
+      for (var s = 0; s < stars.length; s++){ var st = stars[s]; st.tw += st.speed; var tw = 0.4 + Math.sin(st.tw) * 0.6; ctx.globalAlpha = st.a * tw; ctx.fillStyle = st.color; ctx.fillRect(st.x, st.y, st.size, st.size); }
+      ctx.globalAlpha = 1; drawPagoda();
+      for (var i = 0; i < clouds.length; i++){ var c = clouds[i]; c.x += c.vx; if (c.x < -c.size * 2) c.x = W + c.size * 2; drawCloud(c.x, c.y, c.size, c.alpha); }
+      for (var g = 0; g < gifts.length; g++){ var gift = gifts[g]; gift.y += gift.vy; gift.sway += gift.swaySpeed; if (gift.y < -gift.size * 2) { gift.y = H + gift.size * 2; gift.x = Math.random() * W; } drawGift(gift.x + Math.sin(gift.sway) * gift.swayAmp, gift.y, gift.size, gift.alpha); }
+      for (var cp = 0; cp < cupcakes.length; cp++){ var cup = cupcakes[cp]; cup.y += cup.vy; cup.sway += cup.swaySpeed; if (cup.y < -cup.size * 2) { cup.y = H + cup.size * 2; cup.x = Math.random() * W; } drawCupcake(cup.x + Math.sin(cup.sway) * cup.swayAmp, cup.y, cup.size, cup.alpha); }
+      for (var b = 0; b < balloons.length; b++){ var bal = balloons[b]; bal.y += bal.vy; bal.sway += bal.swaySpeed; if (bal.y < -bal.size * 2) { bal.y = H + bal.size * 2; bal.x = Math.random() * W; } drawBalloon(bal.x + Math.sin(bal.sway) * bal.swayAmp, bal.y, bal.size, bal.color, bal.alpha); }
+      raf = requestAnimationFrame(draw);
+    }
+
+    resize(); window.addEventListener('resize', resize);
+    if (!reduceMotion) raf = requestAnimationFrame(draw);
+    document.addEventListener('visibilitychange', function(){ if (document.hidden){ if (raf){ cancelAnimationFrame(raf); raf = null; } } else if (!raf && !reduceMotion){ raf = requestAnimationFrame(draw); } });
+  })();
+
+  /* ============================================================
+     SLIDER NAVIGATION & DOTS
+  ============================================================ */
+  var scroller = document.getElementById('scroller');
+  var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+  var slideDots = Array.prototype.slice.call(document.querySelectorAll('.slide-dot'));
+
+  var io = new IntersectionObserver(function(entries){
+    entries.forEach(function(e){
+      if (e.isIntersecting && e.intersectionRatio > 0.5){
+        e.target.classList.add('in');
+        var idx = slides.indexOf(e.target);
+        slideDots.forEach(function(d, i){ d.classList.toggle('active', i === idx); });
+      } else {
+        e.target.classList.remove('in');
+      }
+    });
+  }, { threshold: 0.5 });
+  slides.forEach(function(s){ io.observe(s); });
+
+  slideDots.forEach(function(d){
+    d.addEventListener('click', function(){
+      sfxClick(); var i = parseInt(d.getAttribute('data-go'), 10); slides[i].scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  });
+
+  /* ============================================================
+     TOAST & BUTTON ACTIONS
+  ============================================================ */
+  var toast = document.getElementById('toast');
+  var toastTitle = document.getElementById('toastTitle');
+  var toastText = document.getElementById('toastText');
+  var toastIcon = document.getElementById('toastIcon');
+  var toastTimer = null;
+
+  function showToast(title, text, icon){
+    toastTitle.textContent = title; toastText.textContent = text; toastIcon.textContent = icon || '✦';
+    toast.classList.add('show'); if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(function(){ toast.classList.remove('show'); }, 3800);
+  }
+
+  document.querySelectorAll('.btn').forEach(function(btn){
+    btn.addEventListener('click', function(e){
+      e.stopPropagation(); var rect = btn.getBoundingClientRect(); var ripple = document.createElement('span');
+      ripple.className = 'ripple'; var size = Math.max(rect.width, rect.height); ripple.style.width = size + 'px'; ripple.style.height = size + 'px';
+      ripple.style.left = (e.clientX - rect.left - size / 2) + 'px'; ripple.style.top = (e.clientY - rect.top - size / 2) + 'px';
+      btn.appendChild(ripple); setTimeout(function(){ ripple.remove(); }, 600);
+    });
+  });
+
+  document.getElementById('beginBtn').addEventListener('click', function(){
+    sfxConfirm(); burstConfetti(50, window.innerWidth / 2, window.innerHeight / 2);
+    setTimeout(function(){ slides[1].scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 500);
+  });
+
+  /* ============================================================
+     LETTER (SURAT UNTUK ALLENA)
+  ============================================================ */
+  var openLetterBtn = document.getElementById('openLetterBtn');
+  var letterWrap = document.getElementById('letterWrap');
+  var letterText = document.getElementById('letterText');
+  var letterLoader = document.getElementById('letterLoader');
+  var loaderFill = document.getElementById('loaderFill');
+  var loaderPercent = document.getElementById('loaderPercent');
+  var loaderText = document.getElementById('loaderText');
+  var skipHint = document.getElementById('skipHint');
+  var slide2Subtitle = document.getElementById('slide2Subtitle');
+  var slide2Divider = document.getElementById('slide2Divider');
+
+  var LETTER_CONTENT =
+"嗨 Allena，我是 Tian。\n\n" +
+"恭喜你长大了一岁！希望你在这个 18 岁的年纪里，能收获很多经验和上帝的祝福。\n\n" +
+"希望你成为一个善良的人，把你的祝福分享给大学里的朋友们，也祝你在中文学专业取得优异的成绩，并且能顺利去中国。\n\n" +
+"我也希望我们的感情能长长久久。\n\n" +
+"阿门。";
+
+  var typing = false, letterOpened = false, skipTyping = false;
+
+  function runLoader(cb){
+    letterLoader.classList.add('show'); var pct = 0; var messages = ['LOADING MESSAGE...', 'DECRYPTING...', 'PREPARING...', 'ALMOST READY...']; var msgIdx = 0;
+    var interval = setInterval(function(){
+      pct += 8 + Math.random() * 12; if (pct >= 100) pct = 100;
+      loaderFill.style.width = pct + '%'; loaderPercent.textContent = Math.floor(pct) + '%';
+      if (pct > 25 && msgIdx === 0){ msgIdx = 1; loaderText.textContent = messages[1]; }
+      if (pct > 50 && msgIdx === 1){ msgIdx = 2; loaderText.textContent = messages[2]; }
+      if (pct > 75 && msgIdx === 2){ msgIdx = 3; loaderText.textContent = messages[3]; }
+      if (Math.random() > 0.6 && sfxEnabled) playSfx(600 + pct * 4, 0.03, 'square', 0.018);
+      if (pct >= 100){ clearInterval(interval); setTimeout(function(){ letterLoader.classList.remove('show'); if (cb) cb(); }, 400); }
+    }, 180);
+  }
+
+  function typeLetter(text, el, onComplete){
+    typing = true; skipTyping = false; el.innerHTML = '';
+    var cursor = document.createElement('span'); cursor.className = 'cursor'; el.appendChild(cursor);
+    var i = 0, speed = 55;
+    function step(){
+      if (skipTyping){ el.innerHTML = ''; el.textContent = text; typing = false; skipHint.classList.remove('show'); if (onComplete) onComplete(); return; }
+      if (i >= text.length){ cursor.remove(); typing = false; skipHint.classList.remove('show'); if (onComplete) onComplete(); return; }
+      var ch = text.charAt(i); el.insertBefore(document.createTextNode(ch), cursor);
+      if (ch !== ' ' && ch !== '\n' && Math.random() > 0.55) sfxType();
+      i++; var delay = speed;
+      if (ch === ',' || ch === '.') delay = 240; else if (ch === '\n') delay = 320; else if (ch === '!' || ch === '?' || ch === '。' || ch === '，') delay = 340;
+      setTimeout(step, delay);
+    }
+    step();
+  }
+
+  openLetterBtn.addEventListener('click', function(){
+    if (letterOpened) return; letterOpened = true; openLetterBtn.style.display = 'none'; slide2Divider.style.display = 'none'; slide2Subtitle.style.display = 'none'; sfxOpen();
+    runLoader(function(){
+      letterWrap.classList.add('show'); skipHint.classList.add('show');
+      setTimeout(function(){ typeLetter(LETTER_CONTENT, letterText, function(){ sfxFinish(); burstConfetti(40, window.innerWidth / 2, window.innerHeight / 2); }); }, 400);
+    });
+  });
+
+  letterText.parentElement.addEventListener('click', function(){ if (typing) skipTyping = true; });
+  skipHint.addEventListener('click', function(){ if (typing) skipTyping = true; });
+
+  /* ============================================================
+     CAKE — BLOW CANDLES (Animasi berhenti & nyala ulang)
+  ============================================================ */
+  var candles = Array.prototype.slice.call(document.querySelectorAll('.candle'));
+  var candleHint = document.getElementById('candleHint');
+  var relightBtn = document.getElementById('relightBtn');
+  var blownCount = 0;
+
+  function checkAllCandles(){
+    if (blownCount === candles.length){
+      candleHint.textContent = '🎉 SEMUA LILIN PADAM — PERMOHONAN TERKABUL!'; sfxFinish();
+      burstConfetti(120, window.innerWidth / 2, window.innerHeight * 0.6);
+      setTimeout(function(){ burstConfetti(80, window.innerWidth * 0.2, window.innerHeight * 0.5); }, 200);
+      setTimeout(function(){ burstConfetti(80, window.innerWidth * 0.8, window.innerHeight * 0.5); }, 400);
+      showToast('PERMOHONAN', 'Semoga keinginanmu terkabul!', '✦');
+    }
+  }
+
+  candles.forEach(function(c){
+    c.addEventListener('click', function(){
+      if (c.classList.contains('blown')) return;
+      c.classList.add('blown'); blownCount++; 
+      playBlowSfx();
+      var rect = c.getBoundingClientRect(); burstConfetti(25, rect.left + rect.width/2, rect.top + rect.height/2);
+      checkAllCandles();
+    });
+  });
+
+  relightBtn.addEventListener('click', function(){ 
+    candles.forEach(function(c){ c.classList.remove('blown'); }); 
+    blownCount = 0; 
+    candleHint.textContent = 'TAP A CANDLE TO BLOW IT OUT'; 
+    sfxConfirm(); 
+  });
+
+  /* ============================================================
+     WISH LANTERN (EFEK BINTANG / PETASAN)
+  ============================================================ */
+  var wishInput = document.getElementById('wishInput');
+  var wishBtn = document.getElementById('wishBtn');
+
+  wishBtn.addEventListener('click', function(){
+    var val = wishInput.value.trim();
+    if (!val){ showToast('KOSONG', 'Tulis dulu keinginanmu...', '✦'); wishInput.focus(); return; }
+    sfxWish(); spawnWishFirework(val); wishInput.value = ''; showToast('TERKIRIM', 'Keinginanmu telah dilepas ke langit ✦', '✦');
+  });
+
+  wishInput.addEventListener('keydown', function(e){ if (e.key === 'Enter') wishBtn.click(); });
+
+  function spawnWishFirework(text){
+    var rect = wishBtn.getBoundingClientRect(); 
+    var startX = rect.left + rect.width / 2; 
+    var startY = rect.top;
+    
+    // 1. Teks muncul dengan efek glow
+    var el = document.createElement('div');
+    el.style.cssText = 'position:fixed; left:' + startX + 'px; top:' + startY + 'px; transform:translate(-50%, -50%) scale(0.5); padding:0.8rem 1.5rem; background:linear-gradient(160deg,var(--accent-dark),var(--accent)); border:2px solid var(--primary-light); color:#fff; font-family:VT323,monospace; font-size:1.2rem; text-align:center; max-width:80vw; box-shadow:0 0 0 2px var(--shadow),0 0 40px var(--primary-light),0 0 80px var(--accent); border-radius:8px; pointer-events:none; z-index:1000; text-shadow:0 0 10px #fff; opacity:0; transition:transform 1.5s cubic-bezier(0.16,1,0.3,1), opacity 0.6s;';
+    el.textContent = text; 
+    document.body.appendChild(el);
+    
+    requestAnimationFrame(function(){ 
+      el.style.opacity = '1'; 
+      el.style.transform = 'translate(-50%, -250px) scale(1)'; 
+    });
+
+    // 2. Efek Bintang (Starburst) meledak
+    var W = window.innerWidth, H = window.innerHeight; 
+    var targetY = startY - 250;
+    
+    // Ledakan awal (di tombol)
+    for(var i=0; i<40; i++){
+      var angle = Math.random() * Math.PI * 2; 
+      var sp = 4 + Math.random() * 8;
+      parts.push({ x: startX, y: startY, vx: Math.cos(angle) * sp, vy: Math.sin(angle) * sp - 12, g: 0.12, size: 2 + Math.floor(Math.random() * 4) * 2, a: 1, dec: 0.012 + Math.random() * 0.01, c: ['#fff2c0','#ffd700','#ff8a40','#fff'][Math.floor(Math.random()*4)] });
+    }
+    
+    // Ledakan bintang di atas (saat teks sampai)
+    setTimeout(function(){
+      for(var j=0; j<60; j++){
+        var a2 = Math.random() * Math.PI * 2; 
+        var s2 = 2 + Math.random() * 10;
+        parts.push({ x: startX + (Math.random()-0.5)*60, y: targetY + (Math.random()-0.5)*60, vx: Math.cos(a2) * s2, vy: Math.sin(a2) * s2 - 2, g: 0.08, size: 2 + Math.floor(Math.random() * 5) * 2, a: 1, dec: 0.008 + Math.random() * 0.008, c: ['#fff2c0','#ffd700','#fff','#ffe680'][Math.floor(Math.random()*4)] });
+      }
+      if (!raf) raf = requestAnimationFrame(loop);
+    }, 800);
+    
+    if (!raf) raf = requestAnimationFrame(loop);
+    setTimeout(function(){ el.style.opacity = '0'; setTimeout(function(){ el.remove(); }, 800); }, 3000);
+  }
+
+  /* ============================================================
+     HOLOGRAPHIC 3D CARDS & MODAL BIODATA
+  ============================================================ */
+  var bioModal = document.getElementById('bioModal');
+  var modalClose = document.getElementById('modalClose');
+  var modalImg = document.getElementById('modalImg');
+  var modalTitle = document.getElementById('modalTitle');
+  var modalBio = document.getElementById('modalBio');
+
+  document.querySelectorAll('[data-tilt]').forEach(function(card) {
+    card.addEventListener('mousemove', function(e) {
+      var rect = card.getBoundingClientRect();
+      var x = e.clientX - rect.left;
+      var y = e.clientY - rect.top;
+      var centerX = rect.width / 2;
+      var centerY = rect.height / 2;
+      var rotateX = ((y - centerY) / centerY) * -15; 
+      var rotateY = ((x - centerX) / centerX) * 15;  
+      card.style.transform = `rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale(1.05)`;
+      var bgX = (x / rect.width) * 100;
+      var bgY = (y / rect.height) * 100;
+      card.style.setProperty('--bg-x', bgX + '%');
+      card.style.setProperty('--bg-y', bgY + '%');
+    });
+    
+    card.addEventListener('mouseleave', function() {
+      card.style.transform = 'rotateX(0) rotateY(0) scale(1)';
+    });
+
+    card.addEventListener('click', function() {
+      var imgSrc = card.querySelector('img').src;
+      var name = card.getAttribute('data-name');
+      var bio = card.getAttribute('data-bio');
+      modalImg.src = imgSrc;
+      modalTitle.textContent = name;
+      modalBio.innerHTML = bio; 
+      bioModal.classList.add('active');
+      sfxConfirm();
+    });
+  });
+
+  modalClose.addEventListener('click', function() { bioModal.classList.remove('active'); sfxClick(); });
+  bioModal.addEventListener('click', function(e) { if (e.target === bioModal) { bioModal.classList.remove('active'); sfxClick(); } });
+
+  /* ============================================================
+     3D SONG CAROUSEL (FAVORITE SONGS WITH VINYL)
+  ============================================================ */
+  var songCards = Array.prototype.slice.call(document.querySelectorAll('.song-card'));
+  var currentSongIdx = 0;
+
+  function updateSongCarousel() {
+    var total = songCards.length;
+    for (var i = 0; i < total; i++) {
+      var card = songCards[i];
+      var offset = i - currentSongIdx;
+      
+      if (offset < -Math.floor(total / 2)) offset += total;
+      if (offset > Math.floor(total / 2)) offset -= total;
+      
+      var absOffset = Math.abs(offset);
+      var translateX = offset * 70; 
+      var scale = Math.max(0.7, 1 - absOffset * 0.15);
+      var rotateY = offset * -35;
+      var zIndex = 10 - absOffset;
+      var opacity = absOffset > 2 ? 0 : 1 - absOffset * 0.2;
+
+      card.style.transform = `translateX(${translateX}px) scale(${scale}) rotateY(${rotateY}deg)`;
+      card.style.zIndex = zIndex;
+      card.style.opacity = opacity;
+      card.style.pointerEvents = absOffset > 2 ? 'none' : 'auto';
+
+      if (absOffset === 0) { card.classList.add('active'); } else { card.classList.remove('active'); }
+    }
+  }
+
+  if (songCards.length) {
+    updateSongCarousel();
+
+    songCards.forEach(function(card, idx) {
+      card.addEventListener('click', function() {
+        if (idx !== currentSongIdx) {
+          currentSongIdx = idx;
+          updateSongCarousel();
+          sfxNav();
+        } else {
+          var url = card.getAttribute('data-url');
+          if (url) {
+            window.open(url, '_blank');
+            sfxConfirm();
+          }
+        }
+      });
+    });
+
+    var sStartX = 0, sStartY = 0, sIsDrag = false, sIsHorizontal = null;
+    var songsContainer = document.getElementById('songsCarousel');
+    
+    songsContainer.addEventListener('touchstart', function(e) {
+      if (e.touches.length !== 1) return;
+      sStartX = e.touches[0].clientX; sStartY = e.touches[0].clientY;
+      sIsDrag = true; sIsHorizontal = null;
+    }, { passive: true });
+
+    songsContainer.addEventListener('touchmove', function(e) {
+      if (!sIsDrag) return;
+      var dx = e.touches[0].clientX - sStartX; var dy = e.touches[0].clientY - sStartY;
+      if (sIsHorizontal === null && (Math.abs(dx) > 8 || Math.abs(dy) > 8)) { sIsHorizontal = Math.abs(dx) > Math.abs(dy); }
+      if (sIsHorizontal && e.cancelable) e.preventDefault();
+    }, { passive: false });
+
+    songsContainer.addEventListener('touchend', function(e) {
+      if (!sIsDrag) return; sIsDrag = false; if (!sIsHorizontal) return;
+      var dx = e.changedTouches[0].clientX - sStartX;
+      if (Math.abs(dx) > 40) {
+        if (dx < 0) { currentSongIdx = (currentSongIdx + 1) % songCards.length; } else { currentSongIdx = (currentSongIdx - 1 + songCards.length) % songCards.length; }
+        updateSongCarousel();
+        sfxNav();
+      }
+    });
+  }
+
+  /* ============================================================
+     CONFETTI
+  ============================================================ */
+  var canvas = document.getElementById('confetti');
+  var ctx = canvas.getContext('2d', { alpha: true });
+  var parts = [];
+  var raf = null;
+  var MAX = 200;
+
+  function resizeC(){ canvas.width = window.innerWidth * DPR; canvas.height = window.innerHeight * DPR; ctx.setTransform(DPR, 0, 0, DPR, 0, 0); ctx.imageSmoothingEnabled = false; }
+  resizeC(); window.addEventListener('resize', resizeC);
+
+  var COLORS = ['#ffd700','#fff2c0','#ff3e3e','#ff8a40','#ffe680','#d4a537'];
+
+  function burstConfetti(count, ox, oy){
+    count = Math.min(count, MAX - parts.length); var W = window.innerWidth, H = window.innerHeight;
+    for (var i = 0; i < count; i++){
+      var a = Math.random() * Math.PI * 2; var sp = 6 + Math.random() * 9;
+      parts.push({ x: ox || W / 2, y: oy || H / 2, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 2, g: 0.18, size: 3 + Math.floor(Math.random() * 3) * 2, a: 1, dec: 0.008 + Math.random() * 0.005, c: COLORS[Math.floor(Math.random() * COLORS.length)] });
+    }
+    if (!raf) raf = requestAnimationFrame(loop);
+  }
+
+  function loop(){
+    var W = window.innerWidth, H = window.innerHeight; ctx.clearRect(0, 0, W, H);
+    for (var i = parts.length - 1; i >= 0; i--){
+      var p = parts[i]; p.vy += p.g; p.vx *= 0.99; p.x += p.vx; p.y += p.vy; p.a -= p.dec;
+      if (p.a <= 0 || p.y > H + 40){ parts.splice(i, 1); continue; }
+      ctx.globalAlpha = Math.max(0, p.a); ctx.fillStyle = p.c; ctx.fillRect(Math.floor(p.x / 2) * 2, Math.floor(p.y / 2) * 2, p.size, p.size);
+    }
+    ctx.globalAlpha = 1;
+    if (parts.length > 0) raf = requestAnimationFrame(loop); else { raf = null; ctx.clearRect(0, 0, W, H); }
+  }
+
+  document.addEventListener('visibilitychange', function(){
+    if (document.hidden && raf){ cancelAnimationFrame(raf); raf = null; }
+    else if (!document.hidden && parts.length > 0 && !raf){ raf = requestAnimationFrame(loop); }
+  });
+
+  /* ============================================================
+     INIT
+  ============================================================ */
+  updateMusicUI();
+  updateSfxUI();
+
+})();
+</script>
+</body>
+</html>
+```
